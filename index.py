@@ -128,7 +128,7 @@ def clean_html(html_content):
     html_content = re.sub(r'```\s*$', '', html_content)
     return html_content.strip()
 
-st.title('두 단계 프롬프트 인포그래픽 생성기 (다중 API)')
+st.title('슬라이드 생성기')
 
 api_choice = st.selectbox('API 선택:', ('Claude', 'Gemini', 'OpenAI GPT'))
 

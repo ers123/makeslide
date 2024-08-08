@@ -1,3 +1,2 @@
 streamlit==1.37.1
 requests==2.31.0
-streamlit-ws-localstorage==1.0.6

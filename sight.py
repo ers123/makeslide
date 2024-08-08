@@ -1,6 +1,5 @@
 import streamlit as st
-import uuid
-from streamlit_ws_localstorage import injectWebsocketCode
+import streamlit.components.v1 as components
 import json
 from datetime import datetime
 
@@ -34,9 +33,47 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 웹소켓 연결 설정
-HOST_PORT = 'wsauthserver.supergroup.ai'
-conn = injectWebsocketCode(hostPort=HOST_PORT, uid=str(uuid.uuid1()))
+# HTML 및 JavaScript 코드 (로컬 스토리지 접근용)
+html_code = """
+<iframe id="localStorageFrame" style="display:none;"></iframe>
+<script>
+    function getLocalStorage(key) {
+        return localStorage.getItem(key);
+    }
+    function setLocalStorage(key, value) {
+        localStorage.setItem(key, value);
+    }
+    function removeLocalStorage(key) {
+        localStorage.removeItem(key);
+    }
+</script>
+"""
+
+# HTML 삽입
+components.html(html_code, height=0)
+
+# 로컬 스토리지 접근 함수
+def get_local_storage(key):
+    return components.html(f"""
+        <script>
+            var value = getLocalStorage("{key}");
+            parent.postMessage({{key: "{key}", value: value}}, "*");
+        </script>
+    """, height=0)
+
+def set_local_storage(key, value):
+    return components.html(f"""
+        <script>
+            setLocalStorage("{key}", "{value}");
+        </script>
+    """, height=0)
+
+def remove_local_storage(key):
+    return components.html(f"""
+        <script>
+            removeLocalStorage("{key}");
+        </script>
+    """, height=0)
 
 # 메인 컨테이너
 main_container = st.container()
@@ -87,7 +124,7 @@ with main_container:
             st.write(f"• {prog}")
 
     # 로컬 스토리지에서 메모 데이터 불러오기
-    memos_json = conn.getLocalStorageVal(key="visualization_memos")
+    memos_json = get_local_storage("visualization_memos")
     if memos_json:
         memos = json.loads(memos_json)
     else:
@@ -109,8 +146,9 @@ with main_container:
             'content': user_memo
         }
         memos.append(new_memo)
-        conn.setLocalStorageVal(key="visualization_memos", val=json.dumps(memos))
+        set_local_storage("visualization_memos", json.dumps(memos))
         st.success("메모가 저장되었습니다!")
+        st.experimental_rerun()
 
     # 과거 메모 보기
     st.subheader("과거 메모 보기")
@@ -145,12 +183,12 @@ with main_container:
                 index_to_delete = next(i for i, memo in enumerate(memos) 
                                        if f"{memo['date']} - {memo['stage']}" == memo_to_delete)
                 del memos[index_to_delete]
-                conn.setLocalStorageVal(key="visualization_memos", val=json.dumps(memos))
+                set_local_storage("visualization_memos", json.dumps(memos))
                 st.success("메모가 삭제되었습니다!")
                 st.experimental_rerun()
         
         with col2:
             if st.button("모든 메모 삭제"):
-                conn.setLocalStorageVal(key="visualization_memos", val=json.dumps([]))
+                remove_local_storage("visualization_memos")
                 st.success("모든 메모가 삭제되었습니다!")
                 st.experimental_rerun()

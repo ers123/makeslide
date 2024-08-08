@@ -1,6 +1,5 @@
 import streamlit as st
-import streamlit.components.v1 as components
-import json
+import pandas as pd
 from datetime import datetime
 
 # 페이지 설정
@@ -33,48 +32,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# HTML 및 JavaScript 코드 (로컬 스토리지 접근용)
-html_code = """
-<iframe id="localStorageFrame" style="display:none;"></iframe>
-<script>
-    function getLocalStorage(key) {
-        return localStorage.getItem(key);
-    }
-    function setLocalStorage(key, value) {
-        localStorage.setItem(key, value);
-    }
-    function removeLocalStorage(key) {
-        localStorage.removeItem(key);
-    }
-</script>
-"""
-
-# HTML 삽입
-components.html(html_code, height=0)
-
-# 로컬 스토리지 접근 함수
-def get_local_storage(key):
-    return components.html(f"""
-        <script>
-            var value = getLocalStorage("{key}");
-            parent.postMessage({{key: "{key}", value: value}}, "*");
-        </script>
-    """, height=0)
-
-def set_local_storage(key, value):
-    return components.html(f"""
-        <script>
-            setLocalStorage("{key}", "{value}");
-        </script>
-    """, height=0)
-
-def remove_local_storage(key):
-    return components.html(f"""
-        <script>
-            removeLocalStorage("{key}");
-        </script>
-    """, height=0)
-
 # 메인 컨테이너
 main_container = st.container()
 
@@ -92,12 +49,10 @@ with main_container:
 
     # 5단계 시각화
     st.subheader("훈련 단계")
-    cols = st.columns(5)
     for i, (stage, content) in enumerate(stages.items()):
-        with cols[i]:
-            with st.expander(stage.split(':')[0], expanded=False):
-                for line in content.split('\n'):
-                    st.write(f"• {line}")
+        with st.expander(stage.split(':')[0], expanded=True):
+            for line in content.split('\n'):
+                st.write(f"• {line}")
 
     # 실천 팁과 진전 측정
     col1, col2 = st.columns(2)
@@ -123,13 +78,6 @@ with main_container:
         for prog in progress:
             st.write(f"• {prog}")
 
-    # 로컬 스토리지에서 메모 데이터 불러오기
-    memos_json = get_local_storage("visualization_memos")
-    if memos_json:
-        memos = json.loads(memos_json)
-    else:
-        memos = []
-
     # 메모 기능
     st.subheader("메모 작성")
     col1, col2 = st.columns([1, 2])
@@ -139,56 +87,8 @@ with main_container:
     with col2:
         user_memo = st.text_area("오늘의 시각화 훈련에 대해 메모를 남겨보세요.", height=100)
 
-    if st.button("메모 저장"):
-        new_memo = {
-            'date': memo_date.isoformat(),
-            'stage': memo_stage,
-            'content': user_memo
-        }
-        memos.append(new_memo)
-        set_local_storage("visualization_memos", json.dumps(memos))
-        st.success("메모가 저장되었습니다!")
-        st.experimental_rerun()
+    if st.button("메모 작성"):
+        st.success("메모가 작성되었습니다. 이 메모는 임시적으로 표시되며, 페이지를 새로고침하면 사라집니다.")
+        st.markdown(f"<div class='memo-box'><strong>{memo_date} - {memo_stage}</strong><br>{user_memo}</div>", unsafe_allow_html=True)
 
-    # 과거 메모 보기
-    st.subheader("과거 메모 보기")
-    view_option = st.radio("보기 방식", ["캘린더", "목록"], horizontal=True)
-
-    if view_option == "캘린더":
-        cal_date = st.date_input("날짜 선택", datetime.now(), key="calendar")
-        matching_memos = [memo for memo in memos if memo['date'] == cal_date.isoformat()]
-        
-        if matching_memos:
-            for memo in matching_memos:
-                with st.expander(f"{memo['stage']} - {memo['date']}", expanded=True):
-                    st.markdown(f"<div class='memo-box'>{memo['content']}</div>", unsafe_allow_html=True)
-        else:
-            st.info("선택한 날짜의 메모가 없습니다.")
-    else:
-        if memos:
-            for memo in sorted(memos, key=lambda x: x['date'], reverse=True):
-                with st.expander(f"{memo['date']} - {memo['stage']}", expanded=False):
-                    st.markdown(f"<div class='memo-box'>{memo['content']}</div>", unsafe_allow_html=True)
-        else:
-            st.info("저장된 메모가 없습니다.")
-
-    # 메모 관리
-    if memos:
-        st.subheader("메모 관리")
-        col1, col2 = st.columns(2)
-        with col1:
-            memo_to_delete = st.selectbox("삭제할 메모 선택", 
-                                          [f"{memo['date']} - {memo['stage']}" for memo in memos])
-            if st.button("선택한 메모 삭제"):
-                index_to_delete = next(i for i, memo in enumerate(memos) 
-                                       if f"{memo['date']} - {memo['stage']}" == memo_to_delete)
-                del memos[index_to_delete]
-                set_local_storage("visualization_memos", json.dumps(memos))
-                st.success("메모가 삭제되었습니다!")
-                st.experimental_rerun()
-        
-        with col2:
-            if st.button("모든 메모 삭제"):
-                remove_local_storage("visualization_memos")
-                st.success("모든 메모가 삭제되었습니다!")
-                st.experimental_rerun()
+    st.warning("주의: 이 앱은 메모를 저장하지 않습니다. 중요한 내용은 따로 기록해 두세요.")

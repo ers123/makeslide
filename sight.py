@@ -1,8 +1,8 @@
 import streamlit as st
-from streamlit_local_storage import LocalStorage
-import pandas as pd
-from datetime import datetime
+import uuid
+from streamlit_ws_localstorage import injectWebsocketCode
 import json
+from datetime import datetime
 
 # 페이지 설정
 st.set_page_config(layout="centered", page_title="시각화 훈련 가이드")
@@ -34,8 +34,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 로컬 스토리지 초기화
-local_storage = LocalStorage()
+# 웹소켓 연결 설정
+HOST_PORT = 'wsauthserver.supergroup.ai'
+conn = injectWebsocketCode(hostPort=HOST_PORT, uid=str(uuid.uuid1()))
 
 # 메인 컨테이너
 main_container = st.container()
@@ -54,11 +55,12 @@ with main_container:
 
     # 5단계 시각화
     st.subheader("훈련 단계")
-    for stage, content in stages.items():
-        with st.expander(stage, expanded=True):
-            for line in content.split('\n'):
-                st.write(line)
-
+    cols = st.columns(5)
+    for i, (stage, content) in enumerate(stages.items()):
+        with cols[i]:
+            with st.expander(stage.split(':')[0], expanded=False):
+                for line in content.split('\n'):
+                    st.write(f"• {line}")
 
     # 실천 팁과 진전 측정
     col1, col2 = st.columns(2)
@@ -85,7 +87,7 @@ with main_container:
             st.write(f"• {prog}")
 
     # 로컬 스토리지에서 메모 데이터 불러오기
-    memos_json = local_storage.getItem("visualization_memos")
+    memos_json = conn.getLocalStorageVal(key="visualization_memos")
     if memos_json:
         memos = json.loads(memos_json)
     else:
@@ -107,7 +109,7 @@ with main_container:
             'content': user_memo
         }
         memos.append(new_memo)
-        local_storage.setItem("visualization_memos", json.dumps(memos))
+        conn.setLocalStorageVal(key="visualization_memos", val=json.dumps(memos))
         st.success("메모가 저장되었습니다!")
 
     # 과거 메모 보기
@@ -143,12 +145,12 @@ with main_container:
                 index_to_delete = next(i for i, memo in enumerate(memos) 
                                        if f"{memo['date']} - {memo['stage']}" == memo_to_delete)
                 del memos[index_to_delete]
-                local_storage.setItem("visualization_memos", json.dumps(memos))
+                conn.setLocalStorageVal(key="visualization_memos", val=json.dumps(memos))
                 st.success("메모가 삭제되었습니다!")
                 st.experimental_rerun()
         
         with col2:
             if st.button("모든 메모 삭제"):
-                local_storage.deleteItem("visualization_memos")
+                conn.setLocalStorageVal(key="visualization_memos", val=json.dumps([]))
                 st.success("모든 메모가 삭제되었습니다!")
                 st.experimental_rerun()
